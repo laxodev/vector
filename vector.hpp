@@ -151,15 +151,40 @@ public:
 
 		m_vec_size--;
 	}
+	// Inserts a new element before pos, args are forwarded to buffer pos.
+	template<typename... Args>
+	iterator emplace(const iterator pos, Args&&... args) noexcept
+	{
+		if (this->capacity() >= this->size())
+			reserve(this->size() + 1);
+
+		// acquire a pointer to the last position of the buffer.
+		iterator pos = &m_buffer[pos - m_buffer];
+
+		// forward arguments to T.
+		*pos = T(std::forward<Args>(args)...);
+
+		m_vec_size++;
+		
+		return pos;
+	}
+	// inserts a new element at the end of buffer, args are forwarded to T.
 	template<typename... Args>
 	void emplace_back(Args&&... args) noexcept
 	{
 		if (this->capacity() >= this->size())
 			reserve(this->size() + 1);
-
-		m_buffer[m_vec_size++] = std::move(T(std::forward<Args>(args) ...));
+		
+		m_buffer[m_vec_size++] = T(std::forward<Args>(args)...);
 	}
-	
+	template<typename... Args>
+	T& emplace_back(Args&& ... args) noexcept
+	{
+		if (this->capacity() >= this->size())
+			reserve(this->size() + 1);
+
+		return m_buffer[m_vec_size++] = T(std::forward<Args>(args)...);
+	}
 	// reallocates vector to match the capacity to element size.
 	void shrink_to_fit() noexcept
 	{
