@@ -26,27 +26,31 @@ private:
 	}
 	inline void swap(vector<T>& vec) noexcept { std::swap(m_buffer, vec.m_buffer); }
 public:
-	explicit vector(const std::size_t vec_capacity) noexcept : m_vec_capacity(vec_capacity), m_vec_size(0)
+	explicit vector(const std::size_t vec_capacity) noexcept : 
+		m_vec_capacity(vec_capacity), 
+		m_vec_size(0)
 	{
 		m_buffer = std::make_unique<T[]>(vec_capacity);
 	}
-	vector(std::initializer_list<T> init) noexcept(false)
+	// size and capacity set to 0 by default constructor
+	explicit constexpr vector() noexcept : 
+		m_vec_size(0), 
+		m_vec_capacity(0), 
+		m_buffer(nullptr) {};
+
+	vector(const std::initializer_list<T>& init) noexcept(false) : 
+		m_vec_capacity(init.size()),
+		m_vec_size(init.size())
 	{
 		m_buffer = std::make_unique<T[]>(init.size());
 
 		std::copy(init.begin(), init.end(), m_buffer.get());
-
-		this->m_vec_capacity = init.size();
-
-		this->m_vec_size = init.size();
 	}
 	// copy constructor, copys x elements into another vector.
-	const explicit vector(const vector<T>& vec) noexcept
+	const explicit vector(const vector<T>& vec) noexcept : 
+		m_vec_size(vec.m_vec_size), // copy vector size
+		m_vec_capacity(vec.m_vec_capacity) // copy vector capacity
 	{
-		// copy vector size and capacity.
-		this->m_vec_size = vec.m_vec_size;
-		this->m_vec_capacity = vec.m_vec_capacity;
-
 		// allocate new unique_ptr buffer.
 		realloc_vector(m_vec_capacity);
 
@@ -54,7 +58,9 @@ public:
 		std::copy(vec.m_buffer.get(), vec.m_buffer.get() + vec.size(), this->m_buffer.get());
 	}
 	// move constructor, moves the members and then switches places with the old vector.
-	const explicit vector(vector<T>&& vec) noexcept : m_vec_capacity(0), m_vec_size(0)
+	explicit vector(vector<T>&& vec) noexcept : 
+		m_vec_capacity(0), 
+		m_vec_size(0)
 	{
 		// move basic members.
 		m_vec_size = std::move(vec.m_vec_size);
@@ -74,6 +80,8 @@ public:
 
 		// allocate new unique_ptr buffer.
 		realloc_vector(m_vec_capacity);
+
+		std::copy(vec.m_buffer.get(), vec.m_buffer.get() + vec.size(), this->m_buffer.get());
 	}
 	// move assignment operator, moves the members and then switches places with the old vector.
 	const vector& operator= (vector<T>&& vec) noexcept
@@ -90,8 +98,6 @@ public:
 
 		return *this;
 	}
-	// size and capacity set to 0 by default constructor
-	explicit constexpr vector() noexcept : m_vec_size(0), m_vec_capacity(0), m_buffer(nullptr) {};
 public:
 	inline T& operator[](const std::size_t element_index) const noexcept { return this->m_buffer[element_index]; }
 public:
@@ -111,7 +117,7 @@ public:
 
 	iterator end() const noexcept { return m_buffer.get() + this->size(); }
 
-	iterator erase() noexcept {}
+	//iterator erase() noexcept {}
 
 	// reallocates vector to change it's capacity.
 	void resize(const std::size_t n) noexcept
@@ -146,10 +152,14 @@ public:
 		m_vec_size--;
 	}
 	template<typename... Args>
-	void emplace_back(Args&&... args) const noexcept
+	void emplace_back(Args&&... args) noexcept
 	{
-		//std::forward<Args>(m_buffer[0]);
+		if (this->capacity() >= this->size())
+			reserve(this->size() + 1);
+
+		m_buffer[m_vec_size++] = std::move(T(std::forward<Args>(args) ...));
 	}
+	
 	// reallocates vector to match the capacity to element size.
 	void shrink_to_fit() noexcept
 	{
@@ -166,6 +176,41 @@ public:
 	T& front() const noexcept { return m_buffer[0]; }
 
 	T& back() const noexcept { return m_buffer[this->size() - 1]; }
+
+	// inserts x at either the start or end of the buffer.
+	void insert(const iterator pos, const T& val) noexcept
+	{
+		
+		
+		m_buffer[pos + 1] = val;
+	}
+	void insert(const iterator pos, const T&& val) noexcept
+	{
+		
+
+		//m_buffer[n] = std::move(val);
+	}
+	
+	void assign(const std::size_t n, const T& val) noexcept
+	{
+		realloc_vector(n);
+
+		
+	}
+	void assign(const std::initializer_list<T>& il) noexcept(false)
+	{
+		realloc_vector(il.size());
+
+		std::copy(il.begin(), il.end(), this->m_buffer.get());
+
+		this->m_vec_size = il.size();
+
+		this->m_vec_capacity = il.size();
+	}
+	void assign(iterator first, iterator last) noexcept
+	{
+		
+	}
 
 	void reserve(const std::size_t n) noexcept(false)
 	{
@@ -198,4 +243,18 @@ public:
 	inline T* data() const noexcept { return this->m_buffer.get(); }
 };
 
-
+template<typename T>
+bool operator== (const vector<T>& lhs, const vector<T>& rhs) noexcept
+{
+	return lhs == rhs;
+}
+template<typename T>
+bool operator!= (const vector<T>& lhs, const vector<T>& rhs) noexcept
+{
+	return lhs != rhs;
+}
+template<typename T>
+bool operator< (const vector<T>& lhs, const vector<T>& rhs) noexcept
+{
+	return lhs < rhs;
+}
