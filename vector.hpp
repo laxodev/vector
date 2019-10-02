@@ -25,6 +25,8 @@ private:
 		m_buffer = std::make_unique<T[]>(n);
 	}
 	inline void swap(vector<T>& vec) noexcept { std::swap(m_buffer, vec.m_buffer); }
+
+	inline std::size_t get_position(const iterator it) const noexcept { return it - m_buffer.get(); }
 public:
 	explicit vector(const std::size_t vec_capacity) noexcept : 
 		m_vec_capacity(vec_capacity), 
@@ -105,8 +107,6 @@ public:
 
 	// Returns x amount of elements existing in the dynamic-array.
 	constexpr std::size_t size() const noexcept { return m_vec_size; }
-
-	constexpr std::size_t max_size() const noexcept { return std::pow(2, 32) - 1; }
 	
 	// returns vector capacity
 	constexpr std::size_t capacity() const noexcept { return m_vec_capacity; }
@@ -151,18 +151,17 @@ public:
 
 		m_vec_size--;
 	}
-	// Inserts a new element before pos, args are forwarded to buffer pos.
+	// Inserts a new element before pos, args are forwarded to T.
 	template<typename... Args>
 	iterator emplace(const iterator pos, Args&&... args) noexcept
 	{
-		if (this->capacity() >= this->size())
+		if (this->size() >= this->capacity())
 			reserve(this->size() + 1);
 
-		// acquire a pointer to the last position of the buffer.
-		iterator pos = &m_buffer[pos - m_buffer];
+		const std::size_t position = this->get_position(pos);
 
 		// forward arguments to T.
-		*pos = T(std::forward<Args>(args)...);
+		m_buffer[position] = T(std::forward<Args>(args)...);
 
 		m_vec_size++;
 		
@@ -172,13 +171,13 @@ public:
 	template<typename... Args>
 	void emplace_back(Args&&... args) noexcept
 	{
-		if (this->capacity() >= this->size())
+		if (this->size() >= this->capacity())
 			reserve(this->size() + 1);
 		
 		m_buffer[m_vec_size++] = T(std::forward<Args>(args)...);
 	}
 	template<typename... Args>
-	T& emplace_back(Args&& ... args) noexcept
+	T& emplace_back(Args&&... args) noexcept
 	{
 		if (this->capacity() >= this->size())
 			reserve(this->size() + 1);
@@ -205,17 +204,15 @@ public:
 	// inserts x at either the start or end of the buffer.
 	void insert(const iterator pos, const T& val) noexcept
 	{
-		
-		
-		m_buffer[pos + 1] = val;
-	}
-	void insert(const iterator pos, const T&& val) noexcept
-	{
-		
+		if (this->size() >= this->capacity())
+			reserve(this->size());
 
-		//m_buffer[n] = std::move(val);
+		const std::size_t position = this->get_position(pos);
+
+		m_buffer[position] = val;
+
+		m_vec_size++;
 	}
-	
 	void assign(const std::size_t n, const T& val) noexcept
 	{
 		realloc_vector(n);
@@ -267,19 +264,3 @@ public:
 
 	inline T* data() const noexcept { return this->m_buffer.get(); }
 };
-
-template<typename T>
-bool operator== (const vector<T>& lhs, const vector<T>& rhs) noexcept
-{
-	return lhs == rhs;
-}
-template<typename T>
-bool operator!= (const vector<T>& lhs, const vector<T>& rhs) noexcept
-{
-	return lhs != rhs;
-}
-template<typename T>
-bool operator< (const vector<T>& lhs, const vector<T>& rhs) noexcept
-{
-	return lhs < rhs;
-}
