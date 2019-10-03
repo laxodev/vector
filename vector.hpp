@@ -24,7 +24,7 @@ private:
 	{
 		m_buffer = std::make_unique<T[]>(n);
 	}
-	inline void swap(vector<T>& vec) noexcept { std::swap(m_buffer, vec.m_buffer); }
+	inline void swap(vector<T>& vec) noexcept { std::swap(m_vec_size, vec.m_vec_size), std::swap(m_vec_capacity, vec.m_vec_capacity); }
 
 	inline std::size_t get_position(const iterator it) const noexcept { return it - m_buffer.get(); }
 public:
@@ -69,24 +69,23 @@ public:
 		m_vec_capacity = std::move(vec.m_vec_capacity);
 
 		// move buffer.
-		//m_buffer = std::move(vec.m_buffer);
-
-		// swap the moving vector.
-		this->swap(*this);
+		m_buffer = std::move(vec.m_buffer);
 	}
 	// copy assignment operator, copys x elements into another vector.
 	const vector& operator= (const vector<T>& vec) noexcept
 	{
-		this->m_vec_size = vec.m_vec_size;
-		this->m_vec_capacity = vec.m_vec_capacity;
+		// swap two members (size, capacity).
+		this->swap(*this);
 
 		// allocate new unique_ptr buffer.
 		realloc_vector(m_vec_capacity);
 
 		std::copy(vec.m_buffer.get(), vec.m_buffer.get() + vec.size(), this->m_buffer.get());
+
+		return *this;
 	}
 	// move assignment operator, moves the members and then switches places with the old vector.
-	const vector& operator= (vector<T>&& vec) noexcept
+	vector& operator= (vector<T>&& vec) noexcept
 	{
 		// move basic members.
 		m_vec_size = std::move(vec.m_vec_size);
@@ -94,9 +93,6 @@ public:
 
 		// move buffer.
 		m_buffer = std::move(vec.m_buffer);
-
-		// swap the moving vector.
-		this->swap(*this);
 
 		return *this;
 	}
@@ -113,9 +109,9 @@ public:
 
 	constexpr bool empty() const noexcept { return m_vec_size == 0; }
 
-	iterator begin() const noexcept { return m_buffer.get(); }
+	constexpr iterator begin() const noexcept { return m_buffer.get(); }
 
-	iterator end() const noexcept { return m_buffer.get() + this->size(); }
+	constexpr iterator end() const noexcept { return m_buffer.get() + this->size(); }
 
 	//iterator erase() noexcept {}
 
@@ -131,25 +127,23 @@ public:
 		if (this->size() >= this->capacity())
 			reserve(this->capacity() + 1);
 
-		m_buffer[m_vec_size++] = val;
+		m_buffer[m_vec_size++] = T(val);
 	}
-	void push_back(const T&& val) noexcept
+	void push_back(T&& val) noexcept
 	{
 		if (this->size() >= this->capacity())
 			reserve(this->capacity() + 1);
 
-		m_buffer[m_vec_size++] = std::move(val);
+		m_buffer[m_vec_size++] = T(std::forward<T>(val));
 	}
 
-	// destroys the last element and decrements the size.
+	// destroys the last element and decrements the size. 
 	void pop_back() noexcept
 	{
 		if (this->empty())
 			return;
-
-		std::fill(this->m_buffer.get(), this->m_buffer.get() + this->size(), 0);
-
-		m_vec_size--;
+		
+		m_buffer[m_vec_size--].~T();
 	}
 	// Inserts a new element before pos, args are forwarded to T.
 	template<typename... Args>
@@ -209,15 +203,13 @@ public:
 
 		const std::size_t position = this->get_position(pos);
 
-		m_buffer[position] = val;
+		m_buffer[position] = T(val);
 
 		m_vec_size++;
 	}
 	void assign(const std::size_t n, const T& val) noexcept
 	{
 		realloc_vector(n);
-
-		
 	}
 	void assign(const std::initializer_list<T>& il) noexcept(false)
 	{
@@ -237,7 +229,7 @@ public:
 	void reserve(const std::size_t n) noexcept(false)
 	{
 		// this will hold the current buffer data.
-		std::unique_ptr<T[]> temporary_buffer = std::make_unique<T[]>(n);
+	    std::unique_ptr<T[]> temporary_buffer = std::make_unique<T[]>(n);
 
 		// copy current buffer data into the new buffer.
 		std::copy(this->m_buffer.get(), this->m_buffer.get() + this->size(), temporary_buffer.get());
@@ -246,21 +238,19 @@ public:
 
 		this->m_vec_capacity = n;
 
-		// vector has been reallocated, so we move the replacement_buffer data into the old buffer.
-		std::copy(temporary_buffer.get(), temporary_buffer.get() + this->size(), this->m_buffer.get());
+		// vector has been reallocated, so we transfer ownership of the temporary buffer to the main one.
+		m_buffer = std::move(temporary_buffer);
 
 	}
-	void erase(const std::size_t n) noexcept
+	iterator erase(const iterator position) noexcept
 	{
 
 	}
+	iterator erase(const iterator first, const iterator last) noexcept {}
 
 	void clear() noexcept
 	{
-		std::fill_n(m_buffer.get(), this->size(), 0);
-		
-		this->m_vec_size = 0;
 	}
 
-	inline T* data() const noexcept { return this->m_buffer.get(); }
+	constexpr T* data() const noexcept { return this->m_buffer.get(); }
 };
