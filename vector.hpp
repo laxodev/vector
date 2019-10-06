@@ -1,11 +1,36 @@
+/*MIT License
+
+Copyright(c) 2019 laxodev
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this softwareand associated documentation files(the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions :
+
+The above copyright noticeand this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+/*/
+
 #pragma once
 
-#include <cstdint>
-#include <vector>
-#include <memory>
-#include <algorithm>
-#include <math.h>
-// Implementation of std::vector from the C++ STL.
+#include <cstdint> // primitive type typedefs
+#include <vector> // std::vector
+#include <memory> // std::unique_ptr
+#include <algorithm> // std::move_backward
+
+// A lite implementation of std::vector from the C++ STL.
 
 template<typename T>
 class vector
@@ -150,7 +175,8 @@ public:
 		if (this->empty())
 			return;
 		
-		m_buffer[m_vec_size--].~T();
+		if constexpr(!std::is_trivially_destructible<T>::value)
+			m_buffer[m_vec_size--].~T();
 	}
 	// Inserts a new element before pos, args are forwarded to T.
 	template<typename... Args>
@@ -188,7 +214,7 @@ public:
 	// reallocates vector to match the capacity to element size.
 	void shrink_to_fit() noexcept(false)
 	{
-		if (this->capacity() >= this->size())
+		if (!this->empty() && this->capacity() >= this->size())
 			reserve(this->size());
 	}
 	reference at(const std::size_t n) const noexcept(false)
@@ -233,7 +259,7 @@ public:
 	void assign(const std::size_t n, Args&&... args) noexcept
 	{
 		if (this->size() >= this->capacity())
-			reserve(this->capacity() + 1);
+			reserve(this->capacity() + n);
 
 		std::fill_n(this->begin(), n, T(std::forward<Args>(args)...));
 
@@ -257,7 +283,7 @@ public:
 	void reserve(const std::size_t n) noexcept(false)
 	{
 		// this will hold the current buffer data.
-	        std::unique_ptr<T[]> temporary_buffer = std::make_unique<T[]>(n);
+	    std::unique_ptr<T[]> temporary_buffer = std::make_unique<T[]>(n);
 
 		// copy current buffer data into the new buffer.
 		std::copy(this->m_buffer.get(), this->m_buffer.get() + this->size(), temporary_buffer.get());
@@ -271,6 +297,9 @@ public:
 	}
 	iterator erase(const iterator position) noexcept
 	{
+		if(this->empty())
+			return;
+
 		// hold pointer to buffer position via iterator.
 		const iterator it = &m_buffer[this->get_position(position)];
 
@@ -306,18 +335,24 @@ public:
 	constexpr T* data() const noexcept { return this->m_buffer.get(); }
 };
 
+// OPERATOR OVERLOADS.
 template<typename T>
-bool operator== (const vector<T>& lhs, const vector<T>& rhs) noexcept
+bool operator== (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
 {
-	return lhs == rhs;
+	return std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 template<typename T>
-bool operator!= (const vector<T>& lhs, const vector<T>& rhs) noexcept
+bool operator!= (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
 {
-	return lhs != rhs;
+	return !std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 template<typename T>
-bool operator< (const vector<T>& lhs, const vector<T>& rhs) noexcept
+bool operator< (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
 {
-	return lhs < rhs;
+	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
+template<typename T>
+bool operator <= (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
+{
+	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
