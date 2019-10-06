@@ -16,6 +16,9 @@ private:
 	std::size_t m_vec_capacity;
 
 	using iterator = T*;
+	using reverse_iterator = T*;
+
+	using reference = T&;
 
 	//~vector() = default;
 private:
@@ -27,6 +30,7 @@ private:
 	inline void swap(vector<T>& vec) noexcept { std::swap(m_vec_size, vec.m_vec_size), std::swap(m_vec_capacity, vec.m_vec_capacity); }
 
 	inline std::size_t get_position(const iterator it) const noexcept { return it - m_buffer.get(); }
+
 public:
 	explicit vector(const std::size_t vec_capacity) noexcept : 
 		m_vec_capacity(vec_capacity), 
@@ -113,15 +117,19 @@ public:
 
 	constexpr iterator end() const noexcept { return m_buffer.get() + this->size(); }
 
+	constexpr reverse_iterator rbegin() const noexcept { return m_buffer.get() + this->size(); }
+
+	constexpr reverse_iterator rend() const noexcept { return m_buffer.get(); }
+
 	//iterator erase() noexcept {}
 
 	// reallocates vector to change it's capacity.
-	void resize(const std::size_t n) noexcept
+	void resize(const std::size_t n) noexcept(false)
 	{
 		// reallocate memory
 		reserve(n);
 	}
-	void push_back(const T& val) noexcept
+	void push_back(const T& val) noexcept(false)
 	{
 		// reserve vector if we exceed capacity (this will reallocate the buffer).
 		if (this->size() >= this->capacity())
@@ -129,14 +137,13 @@ public:
 
 		m_buffer[m_vec_size++] = T(val);
 	}
-	void push_back(T&& val) noexcept
+	void push_back(T&& val) noexcept(false)
 	{
 		if (this->size() >= this->capacity())
 			reserve(this->capacity() + 1);
 
-		m_buffer[m_vec_size++] = T(std::forward<T>(val));
+		m_buffer[m_vec_size++] = T(std::move(val)); // not perfect forwarded due to the existing overload which takes an lvalue reference.
 	}
-
 	// destroys the last element and decrements the size. 
 	void pop_back() noexcept
 	{
@@ -147,15 +154,15 @@ public:
 	}
 	// Inserts a new element before pos, args are forwarded to T.
 	template<typename... Args>
-	iterator emplace(const iterator pos, Args&&... args) noexcept
+	iterator emplace(const iterator pos, Args&&... args) noexcept(false)
 	{
 		if (this->size() >= this->capacity())
 			reserve(this->size() + 1);
 
-		const std::size_t position = this->get_position(pos);
+		std::move_backward(pos, this->end(), this->end() + 1);
 
 		// forward arguments to T.
-		m_buffer[position] = T(std::forward<Args>(args)...);
+		m_buffer[this->get_position(pos)] = T(std::forward<Args>(args)...);
 
 		m_vec_size++;
 		
@@ -163,7 +170,7 @@ public:
 	}
 	// inserts a new element at the end of buffer, args are forwarded to T.
 	template<typename... Args>
-	void emplace_back(Args&&... args) noexcept
+	void emplace_back(Args&&... args) noexcept(false)
 	{
 		if (this->size() >= this->capacity())
 			reserve(this->size() + 1);
@@ -171,7 +178,7 @@ public:
 		m_buffer[m_vec_size++] = T(std::forward<Args>(args)...);
 	}
 	template<typename... Args>
-	T& emplace_back(Args&&... args) noexcept
+	T& emplace_back(Args&&... args) noexcept(false)
 	{
 		if (this->capacity() >= this->size())
 			reserve(this->size() + 1);
@@ -179,37 +186,58 @@ public:
 		return m_buffer[m_vec_size++] = T(std::forward<Args>(args)...);
 	}
 	// reallocates vector to match the capacity to element size.
-	void shrink_to_fit() noexcept
+	void shrink_to_fit() noexcept(false)
 	{
 		if (this->capacity() >= this->size())
 			reserve(this->size());
 	}
-	T& at(const std::size_t n) const noexcept(false)
+	reference at(const std::size_t n) const noexcept(false)
 	{
 		if (n > this->size())
 			throw std::out_of_range("Vector element position is out of bounds");
 
 		return m_buffer[n];
 	}
-	T& front() const noexcept { return m_buffer[0]; }
+	reference front() const noexcept { return m_buffer[0]; }
 
-	T& back() const noexcept { return m_buffer[this->size() - 1]; }
+	reference back() const noexcept { return m_buffer[this->size() - 1]; }
 
 	// inserts x at either the start or end of the buffer.
 	void insert(const iterator pos, const T& val) noexcept
 	{
 		if (this->size() >= this->capacity())
-			reserve(this->size());
+			reserve(this->capacity() + 1);
 
-		const std::size_t position = this->get_position(pos);
+		const iterator it = &m_buffer[this->get_position(pos)];
 
-		m_buffer[position] = T(val);
+		std::move_backward(pos, this->end(), this->end() + 1);
+
+		(*it) = T(val);
 
 		m_vec_size++;
 	}
-	void assign(const std::size_t n, const T& val) noexcept
+	void insert(const iterator pos, T&& val) noexcept(false)
 	{
-		realloc_vector(n);
+		if (this->size() >= this->capacity())
+			reserve(this->capacity() + 1);
+
+		const iterator it = &m_buffer[this->get_position(pos)];
+
+		std::move_backward(pos, this->end(), this->end() + 1);
+
+		(*it) = T(std::move(val));
+
+		m_vec_size++;
+	}
+	template<typename... Args>
+	void assign(const std::size_t n, Args&&... args) noexcept
+	{
+		if (this->size() >= this->capacity())
+			reserve(this->capacity() + 1);
+
+		std::fill_n(this->begin(), n, T(std::forward<Args>(args)...));
+
+		m_vec_size = n;
 	}
 	void assign(const std::initializer_list<T>& il) noexcept(false)
 	{
@@ -217,13 +245,13 @@ public:
 
 		std::copy(il.begin(), il.end(), this->m_buffer.get());
 
-		this->m_vec_size = il.size();
+		m_vec_size = il.size();
 
-		this->m_vec_capacity = il.size();
+		m_vec_capacity = il.size();
 	}
-	void assign(iterator first, iterator last) noexcept
+	void assign(const iterator first, const iterator last) noexcept(false)
 	{
-		
+		std::copy(first, last, this->m_buffer.get());
 	}
 
 	void reserve(const std::size_t n) noexcept(false)
@@ -240,17 +268,56 @@ public:
 
 		// vector has been reallocated, so we transfer ownership of the temporary buffer to the main one.
 		m_buffer = std::move(temporary_buffer);
-
 	}
 	iterator erase(const iterator position) noexcept
 	{
+		// hold pointer to buffer position via iterator.
+		const iterator it = &m_buffer[this->get_position(position)];
 
+		(*it).~T();
+
+		std::copy(position + 1, this->end(), position);
+
+		m_vec_size--;
+
+		return it;
 	}
-	iterator erase(const iterator first, const iterator last) noexcept {}
-
-	void clear() noexcept
+	iterator erase(const iterator first, const iterator last) noexcept
 	{
+		const iterator it = &m_buffer[this->get_position(first)];
+
+		std::for_each(first, last, [](reference ref) {ref.~T(); });
+
+		m_vec_size = 0;
+
+		return it;
+	}
+
+	void clear() noexcept(false)
+	{
+		if (this->empty())
+			return;
+		
+		std::for_each(this->begin(), this->end(), [](reference ref) {ref.~T(); });
+
+		m_vec_size = 0;
 	}
 
 	constexpr T* data() const noexcept { return this->m_buffer.get(); }
 };
+
+template<typename T>
+bool operator== (const vector<T>& lhs, const vector<T>& rhs) noexcept
+{
+	return lhs == rhs;
+}
+template<typename T>
+bool operator!= (const vector<T>& lhs, const vector<T>& rhs) noexcept
+{
+	return lhs != rhs;
+}
+template<typename T>
+bool operator< (const vector<T>& lhs, const vector<T>& rhs) noexcept
+{
+	return lhs < rhs;
+}
