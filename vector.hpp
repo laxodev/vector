@@ -257,7 +257,7 @@ public:
 	void reserve(const std::size_t n) noexcept(false)
 	{
 		// this will hold the current buffer data.
-	    std::unique_ptr<T[]> temporary_buffer = std::make_unique<T[]>(n);
+	        std::unique_ptr<T[]> temporary_buffer = std::make_unique<T[]>(n);
 
 		// copy current buffer data into the new buffer.
 		std::copy(this->m_buffer.get(), this->m_buffer.get() + this->size(), temporary_buffer.get());
