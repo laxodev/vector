@@ -183,7 +183,7 @@ public:
 	iterator emplace(const iterator pos, Args&&... args) noexcept(false)
 	{
 		if (this->size() >= this->capacity())
-			reserve(this->size() + 1);
+			reserve(this->capacity() + 1);
 
 		std::move_backward(pos, this->end(), this->end() + 1);
 
@@ -199,7 +199,7 @@ public:
 	void emplace_back(Args&&... args) noexcept(false)
 	{
 		if (this->size() >= this->capacity())
-			reserve(this->size() + 1);
+			reserve(this->capacity() + 1);
 		
 		m_buffer[m_vec_size++] = T(std::forward<Args>(args)...);
 	}
@@ -207,7 +207,7 @@ public:
 	T& emplace_back(Args&&... args) noexcept(false)
 	{
 		if (this->capacity() >= this->size())
-			reserve(this->size() + 1);
+			reserve(this->capacity() + 1);
 
 		return m_buffer[m_vec_size++] = T(std::forward<Args>(args)...);
 	}
