@@ -255,13 +255,12 @@ public:
 
 		m_vec_size++;
 	}
-	template<typename... Args>
-	void assign(const std::size_t n, Args&&... args) noexcept
+	void assign(const std::size_t n, T& val) noexcept
 	{
 		if (this->size() >= this->capacity())
 			reserve(this->capacity() + n);
 
-		std::fill_n(this->begin(), n, T(std::forward<Args>(args)...));
+		std::fill_n(this->begin(), n, T(val));
 
 		m_vec_size = n;
 	}
@@ -354,5 +353,15 @@ bool operator< (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
 template<typename T>
 bool operator <= (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
 {
-	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+	return false;
+}
+template<typename T>
+bool operator > (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
+{
+	return false;
+}
+template<typename T>
+bool operator >= (const vector<T>& lhs, const vector<T>& rhs) noexcept(false)
+{
+	return false;
 }
